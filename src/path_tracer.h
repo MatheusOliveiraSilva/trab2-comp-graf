@@ -16,21 +16,31 @@ Vec3 ray_color(const Ray& r, const Hittable& world, int depth, int min_depth) {
         return Vec3(0, 0, 0);
     }
 
-    Ray scattered;
-    Vec3 attenuation;
     Vec3 emitted = rec.mat_ptr->emitted();
-
-    // If we hit emissive material and have satisfied minimum depth
+    
+    // If we hit emissive material and have satisfied minimum depth, return its emission
     if (rec.mat_ptr->is_emissive() && min_depth <= 0) {
         return emitted;
     }
 
-    // Try to scatter
+    // For diffuse materials, try to scatter
+    Ray scattered;
+    Vec3 attenuation;
     if (rec.mat_ptr->scatter(r, rec, attenuation, scattered)) {
-        return attenuation * ray_color(scattered, world, depth - 1, min_depth - 1);
+        Vec3 scattered_color = ray_color(scattered, world, depth - 1, min_depth - 1);
+        return attenuation * scattered_color;
     }
 
-    // If we can't scatter and haven't satisfied minimum depth, return black
+    // If we can't scatter and it's emissive but min_depth not satisfied, 
+    // treat as diffuse and continue bouncing
+    if (rec.mat_ptr->is_emissive() && min_depth > 0) {
+        Vec3 scatter_direction = rec.normal + random_unit_vector();
+        if (scatter_direction.length_squared() < 1e-8)
+            scatter_direction = rec.normal;
+        scattered = Ray(rec.p, scatter_direction);
+        return Vec3(0.9, 0.9, 0.9) * ray_color(scattered, world, depth - 1, min_depth - 1);
+    }
+
     return Vec3(0, 0, 0);
 }
 

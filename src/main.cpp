@@ -14,7 +14,7 @@ int main() {
     const int image_height = 600;
     const int samples_per_pixel = 100;
     const int max_depth = 50;
-    const int min_depth = 3;
+    const int min_depth = 1;
 
     // World
     HittableList world;
@@ -31,13 +31,7 @@ int main() {
     world.add(std::make_shared<XZRect>(0, 555, 0, 555, 0, white));    // Floor
     world.add(std::make_shared<XYRect>(0, 555, 0, 555, 555, white));  // Back wall
     
-    // Ceiling with hole for light
-    world.add(std::make_shared<XZRect>(0, 213, 0, 555, 555, white));      // Left part of ceiling
-    world.add(std::make_shared<XZRect>(343, 555, 0, 555, 555, white));    // Right part of ceiling
-    world.add(std::make_shared<XZRect>(213, 343, 0, 227, 555, white));    // Front part of ceiling
-    world.add(std::make_shared<XZRect>(213, 343, 332, 555, 555, white));  // Back part of ceiling
-    
-    // Light (positioned slightly below ceiling)
+    // Light (no ceiling blocking it)
     world.add(std::make_shared<XZRect>(213, 343, 227, 332, 554, light));
 
     // Boxes
