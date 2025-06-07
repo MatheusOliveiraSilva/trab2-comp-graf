@@ -4,18 +4,18 @@
 #include "sphere.h"
 #include "rectangle.h"
 #include "box.h"
-#include "transform.h"
+#include "rotated_box.h"
 #include "material.h"
 
 int main() {
     srand(time(nullptr));
 
-    // Image
+    // Image parameters matching reference
     const int image_width = 600;
     const int image_height = 600;
     const int samples_per_pixel = 64;
     const int max_depth = 4;
-    const int min_depth = 3;
+    const int min_depth = 1;
 
     // World
     HittableList world;
@@ -24,7 +24,7 @@ int main() {
     auto red = std::make_shared<Lambertian>(Vec3(0.65, 0.05, 0.05));
     auto white = std::make_shared<Lambertian>(Vec3(0.73, 0.73, 0.73));
     auto green = std::make_shared<Lambertian>(Vec3(0.12, 0.45, 0.15));
-    auto light = std::make_shared<DiffuseLight>(Vec3(15, 15, 15));
+    auto light = std::make_shared<DiffuseLight>(Vec3(25, 25, 25));
 
     // Cornell box walls
     world.add(std::make_shared<YZRect>(0, 555, 0, 555, 555, green));  // Left wall
@@ -32,27 +32,18 @@ int main() {
     world.add(std::make_shared<XZRect>(0, 555, 0, 555, 0, white));    // Floor
     world.add(std::make_shared<XYRect>(0, 555, 0, 555, 555, white));  // Back wall
     
-    // Ceiling with hole for light (making sure light area is completely open)
-    world.add(std::make_shared<XZRect>(0, 210, 0, 555, 555, white));      // Left part of ceiling
-    world.add(std::make_shared<XZRect>(350, 555, 0, 555, 555, white));    // Right part of ceiling
-    world.add(std::make_shared<XZRect>(210, 350, 0, 220, 555, white));    // Front part of ceiling
-    world.add(std::make_shared<XZRect>(210, 350, 340, 555, 555, white));  // Back part of ceiling
+    // Ceiling with hole for light (light is at x:213-343, z:227-332, y:554)
+    world.add(std::make_shared<XZRect>(0, 213, 0, 555, 555, white));      // Left part of ceiling
+    world.add(std::make_shared<XZRect>(343, 555, 0, 555, 555, white));    // Right part of ceiling
+    world.add(std::make_shared<XZRect>(213, 343, 0, 227, 555, white));    // Front part of ceiling
+    world.add(std::make_shared<XZRect>(213, 343, 332, 555, 555, white));  // Back part of ceiling
     
-    // Light (positioned well below ceiling to ensure visibility)
-    world.add(std::make_shared<XZRect>(210, 350, 220, 340, 550, light));
-    
-    // Rotated boxes for better shadow visualization
-    // Box 1 (tall box) - positioned on the left side, rotated 15 degrees
-    auto box1 = std::make_shared<Box>(Vec3(0, 0, 0), Vec3(165, 330, 165), white);
-    auto rotated_box1 = std::make_shared<RotateY>(box1, 15);
-    auto positioned_box1 = std::make_shared<Translate>(rotated_box1, Vec3(265, 0, 295));
-    world.add(positioned_box1);
-    
-    // Box 2 (short box) - positioned on the right side, rotated -18 degrees  
-    auto box2 = std::make_shared<Box>(Vec3(0, 0, 0), Vec3(165, 165, 165), white);
-    auto rotated_box2 = std::make_shared<RotateY>(box2, -18);
-    auto positioned_box2 = std::make_shared<Translate>(rotated_box2, Vec3(130, 0, 65));
-    world.add(positioned_box2);
+    // Light (positioned below ceiling level to avoid overlap)
+    world.add(std::make_shared<XZRect>(213, 343, 227, 332, 554, light));
+
+    // Rotated boxes for better shadow display
+    world.add(std::make_shared<RotatedBox>(Vec3(130, 0, 65), Vec3(295, 165, 230), white, 15));   // Short box rotated 15°
+    world.add(std::make_shared<RotatedBox>(Vec3(265, 0, 295), Vec3(430, 330, 460), white, -18)); // Tall box rotated -18°
 
     // Camera
     Vec3 lookfrom(278, 278, -800);
