@@ -1,0 +1,7 @@
+O objetivo deste projeto é renderizar uma cena 3D usando o algoritmo de traçado de caminhos.
+A aplicação básica a ser desenvolvida deve atender aos seguintes requisitos:
+• A cena deve ser criada com instanciação de esferas, caixas e/ou planos.
+• A cena deve ser iluminada por uma ou mais fontes de luz retangulares.
+• A cena deve conter objetos com materiais difusos (BRDF constante).
+• A cena deve poder ser renderizada com múltiplos caminhos por pixel.
+• Os caminhos devem ter profundidade mínima de 4 (isto é, o quarto vértice deve estar na fonte de luz).
