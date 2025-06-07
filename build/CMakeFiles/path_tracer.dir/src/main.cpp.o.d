@@ -821,4 +821,7 @@ CMakeFiles/path_tracer.dir/src/main.cpp.o: \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__filesystem/recursive_directory_iterator.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/__filesystem/u8path.h \
   /Users/matheussilva/Documents/masters/trab2-comp-graf/src/sphere.h \
-  /Users/matheussilva/Documents/masters/trab2-comp-graf/src/rectangle.h
+  /Users/matheussilva/Documents/masters/trab2-comp-graf/src/rectangle.h \
+  /Users/matheussilva/Documents/masters/trab2-comp-graf/src/box.h \
+  /Users/matheussilva/Documents/masters/trab2-comp-graf/src/rotated_box.h \
+  /Users/matheussilva/Documents/masters/trab2-comp-graf/src/transform.h

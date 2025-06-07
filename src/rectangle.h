@@ -81,4 +81,34 @@ public:
         rec.mat_ptr = mp;
         return true;
     }
+};
+
+// Double-sided light rectangle that emits from both sides
+class DoubleSidedXZRect : public Hittable {
+public:
+    double x0, x1, z0, z1, k;
+    std::shared_ptr<Material> mp;
+
+    DoubleSidedXZRect() {}
+    DoubleSidedXZRect(double _x0, double _x1, double _z0, double _z1, double _k,
+           std::shared_ptr<Material> mat)
+        : x0(_x0), x1(_x1), z0(_z0), z1(_z1), k(_k), mp(mat) {}
+
+    virtual bool hit(const Ray& r, double t_min, double t_max, HitRecord& rec) const override {
+        auto t = (k - r.origin().y) / r.direction().y;
+        if (t < t_min || t > t_max)
+            return false;
+        auto x = r.origin().x + t * r.direction().x;
+        auto z = r.origin().z + t * r.direction().z;
+        if (x < x0 || x > x1 || z < z0 || z > z1)
+            return false;
+        rec.t = t;
+        rec.p = r.at(t);
+        // Always face towards the ray (double-sided)
+        Vec3 outward_normal = Vec3(0, 1, 0);
+        if (r.direction().y > 0) outward_normal = Vec3(0, -1, 0);
+        rec.set_face_normal(r, outward_normal);
+        rec.mat_ptr = mp;
+        return true;
+    }
 }; 

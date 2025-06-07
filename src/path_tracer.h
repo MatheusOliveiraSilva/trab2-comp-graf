@@ -6,7 +6,7 @@
 #include <limits>
 #include <algorithm>
 
-Vec3 ray_color(const Ray& r, const Hittable& world, int depth, int min_depth) {
+Vec3 ray_color(const Ray& r, const Hittable& world, int depth) {
     if (depth <= 0)
         return Vec3(0, 0, 0);
 
@@ -18,30 +18,16 @@ Vec3 ray_color(const Ray& r, const Hittable& world, int depth, int min_depth) {
 
     Vec3 emitted = rec.mat_ptr->emitted();
     
-    // If we hit emissive material and have satisfied minimum depth, return its emission
-    if (rec.mat_ptr->is_emissive() && min_depth <= 0) {
-        return emitted;
-    }
-
     // For diffuse materials, try to scatter
     Ray scattered;
     Vec3 attenuation;
     if (rec.mat_ptr->scatter(r, rec, attenuation, scattered)) {
-        Vec3 scattered_color = ray_color(scattered, world, depth - 1, min_depth - 1);
-        return attenuation * scattered_color;
+        Vec3 scattered_color = ray_color(scattered, world, depth - 1);
+        return emitted + attenuation * scattered_color;
     }
-
-    // If we can't scatter and it's emissive but min_depth not satisfied, 
-    // treat as diffuse and continue bouncing
-    if (rec.mat_ptr->is_emissive() && min_depth > 0) {
-        Vec3 scatter_direction = rec.normal + random_unit_vector();
-        if (scatter_direction.length_squared() < 1e-8)
-            scatter_direction = rec.normal;
-        scattered = Ray(rec.p, scatter_direction);
-        return Vec3(0.9, 0.9, 0.9) * ray_color(scattered, world, depth - 1, min_depth - 1);
-    }
-
-    return Vec3(0, 0, 0);
+    
+    // If material doesn't scatter (like pure emissive), just return emission
+    return emitted;
 }
 
 void render(const Hittable& world, const Camera& cam, int image_width, int image_height, int samples_per_pixel, int max_depth, int min_depth) {
@@ -55,7 +41,7 @@ void render(const Hittable& world, const Camera& cam, int image_width, int image
                 auto u = (i + ((double) rand() / RAND_MAX)) / (image_width - 1);
                 auto v = (j + ((double) rand() / RAND_MAX)) / (image_height - 1);
                 Ray r = cam.get_ray(u, v);
-                pixel_color += ray_color(r, world, max_depth, min_depth);
+                pixel_color += ray_color(r, world, max_depth);
             }
             // Write color
             auto scale = 1.0 / samples_per_pixel;

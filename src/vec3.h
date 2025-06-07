@@ -102,4 +102,25 @@ inline Vec3 random_in_unit_sphere() {
 
 inline Vec3 random_unit_vector() {
     return unit_vector(random_in_unit_sphere());
+}
+
+// Cosine-weighted hemisphere sampling for better diffuse lighting
+inline Vec3 random_cosine_direction() {
+    auto r1 = (double) rand() / RAND_MAX;
+    auto r2 = (double) rand() / RAND_MAX;
+    auto z = std::sqrt(1 - r2);
+    
+    auto phi = 2 * M_PI * r1;
+    auto x = std::cos(phi) * std::sqrt(r2);
+    auto y = std::sin(phi) * std::sqrt(r2);
+    
+    return Vec3(x, y, z);
+}
+
+// Helper to create orthonormal basis from a normal
+inline void onb_from_w(const Vec3& n, Vec3& u, Vec3& v, Vec3& w) {
+    w = unit_vector(n);
+    Vec3 a = (std::abs(w.x) > 0.9) ? Vec3(0, 1, 0) : Vec3(1, 0, 0);
+    v = unit_vector(cross(w, a));
+    u = cross(w, v);
 } 
