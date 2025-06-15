@@ -102,7 +102,7 @@ inline Vec3 random_in_unit_sphere() {
 
 inline Vec3 random_unit_vector() {
     return unit_vector(random_in_unit_sphere());
-}
+} 
 
 // Cosine-weighted hemisphere sampling for better diffuse lighting
 inline Vec3 random_cosine_direction() {

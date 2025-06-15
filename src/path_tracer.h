@@ -6,6 +6,51 @@
 #include <limits>
 #include <algorithm>
 
+// Light sampling function for MIS
+Vec3 sample_light_direct(const Vec3& hit_point, const Vec3& normal, const Hittable& world) {
+    // Light rectangle parameters (matches main.cpp)
+    double x0 = 213, x1 = 343, z0 = 227, z1 = 332, y = 554;
+    
+    // Random point on light
+    double u = (double)rand() / RAND_MAX;
+    double v = (double)rand() / RAND_MAX;
+    Vec3 light_point(x0 + u * (x1 - x0), y, z0 + v * (z1 - z0));
+    
+    // Direction to light
+    Vec3 to_light = light_point - hit_point;
+    double distance_squared = to_light.length_squared();
+    Vec3 light_dir = unit_vector(to_light);
+    
+    // Check if light is visible (shadow ray)
+    Ray shadow_ray(hit_point, light_dir);
+    HitRecord shadow_rec;
+    if (world.hit(shadow_ray, 0.001, sqrt(distance_squared) - 0.001, shadow_rec)) {
+        if (!shadow_rec.mat_ptr->is_emissive()) {
+            return Vec3(0, 0, 0);  // Light is blocked
+        }
+    }
+    
+    // Light contribution
+    double cos_theta = dot(normal, light_dir);
+    if (cos_theta <= 0) return Vec3(0, 0, 0);
+    
+    // Light area and emission
+    double light_area = (x1 - x0) * (z1 - z0);
+    Vec3 light_emission(18, 18, 18);  // Must match main.cpp
+    
+    // PDF of sampling this light point
+    double pdf_light = distance_squared / (cos_theta * light_area);
+    
+    return light_emission * cos_theta / pdf_light;
+}
+
+// Power heuristic for MIS
+double power_heuristic(double pdf_a, double pdf_b) {
+    double a = pdf_a * pdf_a;
+    double b = pdf_b * pdf_b;
+    return a / (a + b);
+}
+
 Vec3 ray_color(const Ray& r, const Hittable& world, int depth) {
     if (depth <= 0)
         return Vec3(0, 0, 0);
@@ -18,12 +63,33 @@ Vec3 ray_color(const Ray& r, const Hittable& world, int depth) {
 
     Vec3 emitted = rec.mat_ptr->emitted();
     
+    // If we hit a light source directly, return its emission
+    if (rec.mat_ptr->is_emissive()) {
+        return emitted;
+    }
+    
     // For diffuse materials, try to scatter
     Ray scattered;
     Vec3 attenuation;
     if (rec.mat_ptr->scatter(r, rec, attenuation, scattered)) {
-        Vec3 scattered_color = ray_color(scattered, world, depth - 1);
-        return emitted + attenuation * scattered_color;
+        // RUSSIAN ROULETTE - Probabilistic path termination for deep paths
+        if (depth < 5) {  // Apply RR only for deep paths
+            double max_component = std::max(attenuation.x, std::max(attenuation.y, attenuation.z));
+            double survival_prob = std::min(max_component, 0.95);  // Cap at 95%
+            
+            if ((double)rand() / RAND_MAX > survival_prob) {
+                return emitted;  // Terminate path
+            }
+            
+            // Compensate for terminated paths
+            attenuation = attenuation / survival_prob;
+        }
+        
+        // MIS: Combine BRDF sampling + Direct light sampling
+        Vec3 color_indirect = ray_color(scattered, world, depth - 1);
+        Vec3 color_direct = sample_light_direct(rec.p, rec.normal, world);
+        
+        return emitted + attenuation * (0.5 * color_indirect + 0.5 * color_direct);
     }
     
     // If material doesn't scatter (like pure emissive), just return emission
