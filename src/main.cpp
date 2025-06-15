@@ -13,8 +13,8 @@ int main() {
     // Image parameters for higher quality (less noise)
     const int image_width = 600;
     const int image_height = 600;
-    const int samples_per_pixel = 300;  // Reduced since cosine sampling is more efficient
-    const int max_depth = 8;            // Adjusted depth
+    const int samples_per_pixel = 300;  // Good balance of quality and speed
+    const int max_depth = 8;            // Sufficient depth for 4+ vertex paths
     const int min_depth = 1;
 
     // World
@@ -24,7 +24,7 @@ int main() {
     auto red = std::make_shared<Lambertian>(Vec3(0.65, 0.05, 0.05));
     auto white = std::make_shared<Lambertian>(Vec3(0.73, 0.73, 0.73));
     auto green = std::make_shared<Lambertian>(Vec3(0.12, 0.45, 0.15));
-    auto light = std::make_shared<DiffuseLight>(Vec3(18, 18, 18));  // Slightly increased
+    auto light = std::make_shared<DiffuseLight>(Vec3(18, 18, 18));  // Good intensity
 
     // Cornell box walls
     world.add(std::make_shared<YZRect>(0, 555, 0, 555, 555, green));  // Left wall
