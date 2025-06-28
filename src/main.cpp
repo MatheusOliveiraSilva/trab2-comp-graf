@@ -7,8 +7,7 @@
 #include "rotated_box.h"
 #include "material.h"
 
-int main() {
-    srand(time(nullptr));
+int main() { srand(time(nullptr));
 
     // HIGH QUALITY PARAMETERS - MIS + Russian Roulette
     const int image_width = 600;   // Full resolution
@@ -38,8 +37,8 @@ int main() {
     world.add(std::make_shared<XZRect>(210, 346, 0, 224, 555, white));   // Front part
     world.add(std::make_shared<XZRect>(210, 346, 335, 555, 555, white)); // Back part
     
-    // Light positioned at ceiling level (not below)
-    world.add(std::make_shared<DoubleSidedXZRect>(213, 343, 227, 332, 554, light));
+    // Light retângulo (emite apenas para baixo)
+    world.add(std::make_shared<XZRect>(213, 343, 227, 332, 554, light));
 
     // Rotated boxes for better shadow display
     world.add(std::make_shared<RotatedBox>(Vec3(130, 0, 65), Vec3(295, 165, 230), white, 15));   // Short box rotated 15°

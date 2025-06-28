@@ -5,9 +5,15 @@
 #include <fstream>
 #include <limits>
 #include <algorithm>
+#include <cmath>
 
-// Light sampling function for MIS
-Vec3 sample_light_direct(const Vec3& hit_point, const Vec3& normal, const Hittable& world) {
+// Sample a point on the rectangular light and return its contribution together with the pdf of the chosen sampling strategy.
+struct LightSample {
+    Vec3 Li;       // Incoming radiance from the light (already includes geometry term)
+    double pdf;    // Pdf value w.r.t. solid angle at the hit point
+};
+
+inline LightSample sample_light_direct(const Vec3& hit_point, const Vec3& normal, const Hittable& world) {
     // Light rectangle parameters (matches main.cpp)
     double x0 = 213, x1 = 343, z0 = 227, z1 = 332, y = 554;
     
@@ -16,42 +22,48 @@ Vec3 sample_light_direct(const Vec3& hit_point, const Vec3& normal, const Hittab
     double v = (double)rand() / RAND_MAX;
     Vec3 light_point(x0 + u * (x1 - x0), y, z0 + v * (z1 - z0));
     
-    // Direction to light
+    // Direction to light (and related geometric terms)
     Vec3 to_light = light_point - hit_point;
     double distance_squared = to_light.length_squared();
-    Vec3 light_dir = unit_vector(to_light);
+    Vec3 light_dir  = unit_vector(to_light);
     
     // Check if light is visible (shadow ray)
     Ray shadow_ray(hit_point, light_dir);
     HitRecord shadow_rec;
-    if (world.hit(shadow_ray, 0.001, sqrt(distance_squared) - 0.001, shadow_rec)) {
+    if (world.hit(shadow_ray, 0.001, std::sqrt(distance_squared) - 0.001, shadow_rec)) {
         if (!shadow_rec.mat_ptr->is_emissive()) {
-            return Vec3(0, 0, 0);  // Light is blocked
+            return {Vec3(0, 0, 0), 1.0};  // Light is blocked
         }
     }
     
-    // Light contribution
-    double cos_theta = dot(normal, light_dir);
-    if (cos_theta <= 0) return Vec3(0, 0, 0);
-    
-    // Light area and emission
+    // Geometry term
+    double cos_theta_surface = dot(normal, light_dir);
+    if (cos_theta_surface <= 0.0) return {Vec3(0,0,0), 1.0};
+
+    // Light area and emission (must match main.cpp)
     double light_area = (x1 - x0) * (z1 - z0);
-    Vec3 light_emission(18, 18, 18);  // Must match main.cpp
-    
-    // PDF of sampling this light point
-    double pdf_light = distance_squared / (cos_theta * light_area);
-    
-    return light_emission * cos_theta / pdf_light;
+    Vec3 light_emission(18, 18, 18);
+
+    // Normal of the light (faces down along -Y)
+    Vec3 light_normal(0, -1, 0);
+    double cos_theta_light = std::fabs(dot(light_dir * -1.0, light_normal));
+    if (cos_theta_light <= 0.0) return {Vec3(0,0,0), 1.0};
+
+    // pdf converting from area measure to solid angle measure
+    double pdf_light = distance_squared / (cos_theta_light * light_area);
+
+    Vec3 Li = light_emission * cos_theta_surface / pdf_light;
+    return {Li, pdf_light};
 }
 
 // Power heuristic for MIS
-double power_heuristic(double pdf_a, double pdf_b) {
+inline double power_heuristic(double pdf_a, double pdf_b) {
     double a = pdf_a * pdf_a;
     double b = pdf_b * pdf_b;
     return a / (a + b);
 }
 
-Vec3 ray_color(const Ray& r, const Hittable& world, int depth) {
+Vec3 ray_color(const Ray& r, const Hittable& world, int depth, int min_depth) {
     if (depth <= 0)
         return Vec3(0, 0, 0);
 
@@ -72,24 +84,33 @@ Vec3 ray_color(const Ray& r, const Hittable& world, int depth) {
     Ray scattered;
     Vec3 attenuation;
     if (rec.mat_ptr->scatter(r, rec, attenuation, scattered)) {
-        // RUSSIAN ROULETTE - Probabilistic path termination for deep paths
-        if (depth < 5) {  // Apply RR only for deep paths
+        // RUSSIAN ROULETTE – só começamos depois de cumprir a profundidade mínima
+        if (min_depth <= 0) {
             double max_component = std::max(attenuation.x, std::max(attenuation.y, attenuation.z));
             double survival_prob = std::min(max_component, 0.95);  // Cap at 95%
             
-            if ((double)rand() / RAND_MAX > survival_prob) {
-                return emitted;  // Terminate path
-            }
-            
-            // Compensate for terminated paths
-            attenuation = attenuation / survival_prob;
+            if ((double)rand() / RAND_MAX > survival_prob)
+                return emitted; // Terminate
+            attenuation = attenuation / survival_prob; // compensate
         }
         
-        // MIS: Combine BRDF sampling + Direct light sampling
-        Vec3 color_indirect = ray_color(scattered, world, depth - 1);
-        Vec3 color_direct = sample_light_direct(rec.p, rec.normal, world);
-        
-        return emitted + attenuation * (0.5 * color_indirect + 0.5 * color_direct);
+        // === Amostragem de luz direta ===
+        LightSample lightSample = sample_light_direct(rec.p, rec.normal, world);
+
+        // pdf da amostragem via BRDF (cosine-weighted)
+        double cos_theta = dot(rec.normal, scattered.direction());
+        double pdf_brdf = cos_theta > 0.0 ? cos_theta / M_PI : 0.0;
+
+        // Heurísticas de potência (MIS)
+        double w_light = power_heuristic(lightSample.pdf, pdf_brdf);
+        double w_brdf  = power_heuristic(pdf_brdf, lightSample.pdf);
+
+        Vec3 L_direct  = attenuation * w_light * lightSample.Li;
+
+        Vec3 L_indirect = ray_color(scattered, world, depth - 1, min_depth - 1);
+        L_indirect = attenuation * w_brdf * L_indirect;
+
+        return emitted + L_direct + L_indirect;
     }
     
     // If material doesn't scatter (like pure emissive), just return emission
@@ -107,7 +128,7 @@ void render(const Hittable& world, const Camera& cam, int image_width, int image
                 auto u = (i + ((double) rand() / RAND_MAX)) / (image_width - 1);
                 auto v = (j + ((double) rand() / RAND_MAX)) / (image_height - 1);
                 Ray r = cam.get_ray(u, v);
-                pixel_color += ray_color(r, world, max_depth);
+                pixel_color += ray_color(r, world, max_depth, min_depth);
             }
             // Write color
             auto scale = 1.0 / samples_per_pixel;
