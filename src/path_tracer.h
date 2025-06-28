@@ -6,6 +6,10 @@
 #include <limits>
 #include <algorithm>
 #include <cmath>
+#include <atomic>
+
+// Global runtime flag set by main.cpp to (de)ativar Multiple-Importance Sampling.
+extern std::atomic<bool> g_use_mis;
 
 // Sample a point on the rectangular light and return its contribution together with the pdf of the chosen sampling strategy.
 struct LightSample {
@@ -102,8 +106,15 @@ Vec3 ray_color(const Ray& r, const Hittable& world, int depth, int min_depth) {
         double pdf_brdf = cos_theta > 0.0 ? cos_theta / M_PI : 0.0;
 
         // Heurísticas de potência (MIS)
-        double w_light = power_heuristic(lightSample.pdf, pdf_brdf);
-        double w_brdf  = power_heuristic(pdf_brdf, lightSample.pdf);
+        double w_light;
+        double w_brdf;
+        if (g_use_mis) {
+            w_light = power_heuristic(lightSample.pdf, pdf_brdf);
+            w_brdf  = power_heuristic(pdf_brdf, lightSample.pdf);
+        } else {
+            w_light = 0.0;      // sem MIS: consideramos só caminho via BRDF
+            w_brdf  = 1.0;
+        }
 
         Vec3 L_direct  = attenuation * w_light * lightSample.Li;
 

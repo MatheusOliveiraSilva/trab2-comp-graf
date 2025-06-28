@@ -6,15 +6,42 @@
 #include "box.h"
 #include "rotated_box.h"
 #include "material.h"
+#include <atomic>
+#include <cstring>
+#include <iostream>
 
-int main() { srand(time(nullptr));
+// runtime flag defined here so path_tracer.cpp can link
+std::atomic<bool> g_use_mis{true};
 
-    // HIGH QUALITY PARAMETERS - MIS + Russian Roulette
-    const int image_width = 600;   // Full resolution
-    const int image_height = 600;
-    const int samples_per_pixel = 400;   // Higher samples for MIS quality
-    const int max_depth = 10;            // Deeper for complex lighting
-    const int min_depth = 1;
+int main(int argc, char** argv) {
+    srand(time(nullptr));
+
+    // Default parameters
+    int samples_per_pixel = 400;
+    int min_depth = 4;
+    int image_width = 600;
+    int image_height = 600;
+    g_use_mis = true;
+
+    // --- Argument parsing (very simples) ---
+    for (int i = 1; i < argc; ++i) {
+        if (strcmp(argv[i], "--samples") == 0 && i + 1 < argc) {
+            samples_per_pixel = atoi(argv[++i]);
+        } else if (strcmp(argv[i], "--min_depth") == 0 && i + 1 < argc) {
+            min_depth = atoi(argv[++i]);
+        } else if (strcmp(argv[i], "--width") == 0 && i + 1 < argc) {
+            image_width = atoi(argv[++i]);
+        } else if (strcmp(argv[i], "--height") == 0 && i + 1 < argc) {
+            image_height = atoi(argv[++i]);
+        } else if (strcmp(argv[i], "--mis_off") == 0) {
+            g_use_mis = false;
+        }
+    }
+
+    // Com base na resolução desejada, mantém aspect ratio
+    // (assumimos cena quadrada quando não especificado)
+
+    const int max_depth = 10;
 
     // World
     HittableList world;
